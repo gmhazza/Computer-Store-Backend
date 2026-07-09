@@ -1,15 +1,22 @@
 const express = require('express')
+const cors = require('cors')
 const generateResponse = require('./responceGen.js')
 require('dotenv').config()
 
 const supabase = require('./database/supabase.js')
 
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 3000;
 
-const app = express()
+const app = express();
 
-app.use(express.json())
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://computer-store.vercel.app'
+  ]
+}));
 
 
 
