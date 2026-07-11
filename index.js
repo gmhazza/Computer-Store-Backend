@@ -182,6 +182,22 @@ app.post('/resetfilters', async (req, res) => {
   res.json(filters)
 })
 
+app.post('/fetchcategories', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name')
+
+    if (error) throw error
+
+    res.json({ success: true, categories: data || [] })
+  } catch (err) {
+    console.error('fetchcategories error:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
 app.listen(port, () => {
     console.log(`Server is live on port ${port}`)
 })
