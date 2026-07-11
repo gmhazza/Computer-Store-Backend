@@ -27,8 +27,10 @@ app.get('/login', async (req, res) => {
     });
     console.log(authError);
     if (authError) {
-        console.error('Error signing in to Supabase:', authError);
-        process.exit(1);
+        res.status(500).json({ success: false, message: 'Failed to log in to Supabase', error: authError });
+    }
+    else {
+        res.json({ success: true, message: 'Successfully logged in to Supabase' });
     }
 });
 
@@ -48,6 +50,83 @@ app.post('/gemini', async (req, res) => {
     const generatedResponse = await generateResponse(prompt.prompt)
     res.json(generatedResponse)
     
+})
+
+app.post('/fetchallproducts', async (req, res) => {
+  const filters = {
+    category: null,
+    brand: null,
+    search: '',
+    minPrice: null,
+    maxPrice: null,
+    inStock: false,
+    sort: 'created_at',
+    sortDir: 'desc',
+    page: 1,
+    perPage: 12,
+  }
+  const customFilters = req.body || {}
+
+  try {
+    const f = { ...filters, ...customFilters }
+    let query = supabase
+      .from('products')
+      .select('*, categories(name, slug), brands(name, slug)', { count: 'exact' })
+      .eq('is_active', true)
+
+    if (f.category) query = query.eq('category_id', f.category)
+    if (f.brand) query = query.eq('brand_id', f.brand)
+    if (f.search) query = query.ilike('name', `%${f.search}%`)
+    if (f.minPrice != null) query = query.gte('price', f.minPrice)
+    if (f.maxPrice != null) query = query.lte('price', f.maxPrice)
+    if (f.inStock) query = query.gt('stock_quantity', 0)
+
+    const from = (f.page - 1) * f.perPage
+    const to = from + f.perPage - 1
+    query = query.order(f.sort, { ascending: f.sortDir === 'asc' }).range(from, to)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    res.json({
+      success: true,
+      products: data || [],
+      total: count || 0,
+    })
+  } catch (err) {
+    console.error('fetchallproducts error:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+app.post('/fetchproduct', async (req, res) => {
+  const { slug } = req.body || {}
+
+  if (!slug) {
+    return res.status(400).json({ success: false, error: 'slug is required' })
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, categories(id, name, slug), brands(id, name, slug)')
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .single()
+
+    if (error) {
+      // PGRST116 = no rows found (or more than one) for .single()
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ success: false, error: 'Product not found' })
+      }
+      throw error
+    }
+
+    res.json({ success: true, product: data })
+  } catch (err) {
+    console.error('fetchproduct error:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
 })
 
 
