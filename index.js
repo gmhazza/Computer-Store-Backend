@@ -179,7 +179,7 @@ app.post('/resetfilters', async (req, res) => {
   // Reset the filters to their default values
   Object.assign(filters, req.body)
 
-  res.json({ success: true, filters })
+  res.json(filters)
 })
 
 app.listen(port, () => {
