@@ -19,6 +19,19 @@ app.use(cors({
 }));
 
 
+const filters = {
+category: null,
+brand: null,
+search: '',
+minPrice: null,
+maxPrice: null,
+inStock: false,
+sort: 'created_at',
+sortDir: 'desc',
+page: 1,
+perPage: 12,
+}
+
 
 app.get('/login', async (req, res) => {
     const { error: authError } = await supabase.auth.signInWithPassword({
@@ -53,18 +66,6 @@ app.post('/gemini', async (req, res) => {
 })
 
 app.post('/fetchallproducts', async (req, res) => {
-  const filters = {
-    category: null,
-    brand: null,
-    search: '',
-    minPrice: null,
-    maxPrice: null,
-    inStock: false,
-    sort: 'created_at',
-    sortDir: 'desc',
-    page: 1,
-    perPage: 12,
-  }
   const customFilters = req.body || {}
 
   try {
@@ -129,6 +130,57 @@ app.post('/fetchproduct', async (req, res) => {
   }
 })
 
+app.post('/fetchfeatured', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, categories(name, slug), brands(name, slug)')
+      .eq('is_active', true)
+      .eq('is_featured', true)
+      .order('created_at', { ascending: false })
+      .limit(8)
+
+    if (error) throw error
+
+    res.json({ success: true, products: data || [] })
+  } catch (err) {
+    console.error('fetchfeatured error:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+app.post('/fetchrelated', async (req, res) => {
+  const { categoryId, excludeId, limit = 4 } = req.body || {}
+
+  if (!categoryId) {
+    return res.status(400).json({ success: false, error: 'categoryId is required' })
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, categories(name, slug), brands(name, slug)')
+      .eq('is_active', true)
+      .eq('category_id', categoryId)
+      .neq('id', excludeId)
+      .order('is_featured', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+
+    res.json({ success: true, products: data || [] })
+  } catch (err) {
+    console.error('fetchrelated error:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+app.post('/resetfilters', (req, res) => {
+  // Reset the filters to their default values
+  Object.assign(filters, req.body)
+
+  res.json({ success: true, filters })
+})
 
 app.listen(port, () => {
     console.log(`Server is live on port ${port}`)
