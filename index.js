@@ -175,7 +175,7 @@ app.post('/fetchrelated', async (req, res) => {
   }
 })
 
-app.post('/resetfilters', (req, res) => {
+app.post('/resetfilters', async (req, res) => {
   // Reset the filters to their default values
   Object.assign(filters, req.body)
 
